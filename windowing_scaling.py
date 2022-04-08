@@ -23,16 +23,19 @@ class WindowScale:
         else:
             self.standardization_scalar = standard_scalar
 
+        # Series of steps to normalize, window, and standardize the data
         self.data = self.normalize()
         self.windowed_data, self.windowed_labels = self.window()
+        self.standardize()
 
     def normalize(self):
         """
         Function to normalize all data to the range of (-1, 1)
         :return: Transformed data
         """
-        self.normalization_scaler = MinMaxScalar((-1, 1))
-        self.normalization_scaler.fit(self.raw_data)
+        if not self.normalization_scalar:
+            self.normalization_scaler = MinMaxScalar((-1, 1))
+            self.normalization_scaler.fit(self.raw_data)
 
         return self.normalization_scaler.transform(self.raw_data)
 
@@ -72,8 +75,18 @@ class WindowScale:
                 np.expand_dims(np.arange(end_index + 1), 0).T
         )
 
-        return self.data[data_windows], label_windows
+        return self.data[data_windows], labels[label_windows]
 
     def standardize(self):
-        pass
+        """
+        Function to standardize data for across each window, for each time step,
+        and for every variable in that time step
+        :return: Standardized, normalized, and windowed data
+        """
 
+        if not self.standardization_scalar:
+            self.standardization_scalar = StandardScalar()
+
+        for i in range(self.windowed_data.shape[1]):
+            for j in range(self.windowed_data.shape[2]):
+                self.windowed_data[:, i, j] = self.standardization_scalar.fit_transform(self.windowed_data[:, i, j])
