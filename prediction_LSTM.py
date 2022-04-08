@@ -7,8 +7,8 @@ import keras_tuner as kt
 
 class SolarLSTM:
 
-    def __init__(self, solar_data, solar_labels, save_path, tune=False, units=[64, 512, 32],
-                 regularization=["early stopping", "dropout"], lr=0.001):
+    def __init__(self, solar_data, solar_labels, save_path, tune=False, units=(64, 512, 32),
+                 regularization=("early stopping", "dropout"), lr=0.001):
         """
         Constructor for Solar Flare Prediction pipeline.
 
