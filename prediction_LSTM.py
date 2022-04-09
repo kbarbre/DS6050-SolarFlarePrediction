@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow import keras
 import keras_tuner as kt
 
-
+from pathlib import Path
 class SolarLSTM:
 
     def __init__(self, solar_data, solar_labels, save_path, tune=False, units=(64, 512, 32),
@@ -32,6 +32,8 @@ class SolarLSTM:
         self.regularization = regularization
         self.adam_lr = lr
         self.save_path = save_path
+        self.model = None
+        self.callbacks = [] #Calback signals for training
 
     def ensure_data_correctness(self):
         if isinstance(self.solar_data, pd.DataFrame):
@@ -44,14 +46,25 @@ class SolarLSTM:
             raise ValueError("Data needs to be scaled between -1 and 1")
 
     def build_model(self):
+        #Open questions: Do we want build_tuned_model to be an internal method only? (_build...)
+        #If not, it should set self.model
+        #What args we want for the callbacks
+
         # Define Adam optimizer: default settings for Adam are the same as our default settings
         opt = keras.optimizers.Adam(learning_rate=self.adam_lr)
 
         # Set loss function
         loss = keras.losses.BinaryCrossentropy(from_logits=True)
 
-        # TODO: Add keras.callbacks.ModelCheckpoint()
-        # TODO: Add keras.callbacks.EarlyStopping()
+        #Add callbacks
+        p=Path(self.save_path)
+        if p.suffix:#If has an extension (can't use is_dir incase not made yet)
+            p = p.parent
+        chkpt_path = p.joinpath('model_checkpoints')#TODO We may need to os.mkdir
+        self.callbacks = [
+            tf.keras.callbacks.EarlyStopping(patience=2),
+            tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path,save_best_only=True),
+        ]
 
         if not self.tuning_pipeline:
             model = keras.Sequential(
@@ -64,11 +77,10 @@ class SolarLSTM:
             model.add(keras.layers.Dense(2, activation="sigmoid"))
 
             model.compile(optimizer=opt, loss=loss, metrics=["accuracy", "mse", "mae"])
-
-            return model
         else:
             model = self.build_tuned_model(opt, loss)
-            return model
+        self.model = model
+        return model
 
     def build_tuned_model(self, opt, loss):
         # Creating keras tuner object
@@ -104,5 +116,10 @@ class SolarLSTM:
     def fit(self):
         # TODO: Complete fit function. There are small differences in the fit for HyperParameter tuned model
         #       and regular tuned model
-        pass
+        if self.model is None:
+            raise ValueError('Model Not built') #Alternatively we build it here
+        self.model.fit(self.solar_data, epochs=2, callbacks=self.callbacks)
+        #TODO is the data expected to be windowed at this point already?
+        #If not, do we want to use window_scaling?
+        #If use window_scaling, produce a generator for memory efficiency?
 
