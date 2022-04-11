@@ -1,6 +1,5 @@
 import numpy as np
-from sklearn.preprocessing import StandardScalar
-from sklearn.preprocessing import MinMaxScalar
+import sklearn.preprocessing as preproc
 
 
 class WindowScale:
@@ -24,9 +23,9 @@ class WindowScale:
             self.standardization_scalar = standard_scalar
 
         # Series of steps to normalize, window, and standardize the data
-        self.data = self.normalize()
         self.windowed_data, self.windowed_labels = self.window()
         self.standardize()
+        self.normalize()
 
     def normalize(self):
         """
@@ -34,10 +33,11 @@ class WindowScale:
         :return: Transformed data
         """
         if not self.normalization_scalar:
-            self.normalization_scaler = MinMaxScalar((-1, 1))
-            self.normalization_scaler.fit(self.raw_data)
-
-        return self.normalization_scaler.transform(self.raw_data)
+            self.normalization_scaler = preproc.MinMaxScaler((-1, 1))
+            reshape_data = np.reshape(self.windowed_data, (self.windowed_data.shape[0] * self.windowed_data.shape[1],
+                                                           self.windowed_data.shape[2]))
+            transformed_data = self.normalization_scaler.fit_transform(reshape_data)
+            self.windowed_data = np.reshape(transformed_data, self.windowed_data.shape)
 
     def window(self):
         """
@@ -49,7 +49,7 @@ class WindowScale:
         ######################################################
         # Windowing observation data
         ######################################################
-        max_index = self.data.shape[0] - self.window_size
+        max_index = self.raw_data.shape[0] - self.window_size
 
         """
         Found below method in the following article:
@@ -66,7 +66,7 @@ class WindowScale:
         ######################################################
         end_index = self.raw_label.shape[0] - self.window_size
 
-        labels = self.raw_label[self.window_size:end_index, :]
+        labels = self.raw_label[self.window_size:end_index]
         labels = np.repeat(labels, self.window_size, axis=0)
 
         label_windows = (
@@ -75,7 +75,7 @@ class WindowScale:
                 np.expand_dims(np.arange(end_index + 1), 0).T
         )
 
-        return self.data[data_windows], labels[label_windows]
+        return self.raw_data[data_windows], labels[label_windows]
 
     def standardize(self):
         """
@@ -85,8 +85,8 @@ class WindowScale:
         """
 
         if not self.standardization_scalar:
-            self.standardization_scalar = StandardScalar()
+            self.standardization_scalar = preproc.StandardScaler()
 
         for i in range(self.windowed_data.shape[1]):
-            for j in range(self.windowed_data.shape[2]):
-                self.windowed_data[:, i, j] = self.standardization_scalar.fit_transform(self.windowed_data[:, i, j])
+            self.windowed_data[:, i, :] = self.standardization_scalar\
+                                              .fit_transform(self.windowed_data[:, i, :], 1)

@@ -29,7 +29,7 @@ class SolarLSTM:
         """
 
         self.solar_data = solar_data
-        self.ensure_data_correctness(self.solar_data)
+        # self.ensure_data_correctness(self.solar_data)
         self.solar_labels = solar_labels
         self.tuning_pipeline = tune
         self.units_min = units[0]
@@ -41,14 +41,14 @@ class SolarLSTM:
         self.model = None
         self.callbacks = [] #Calback signals for training
 
-    def ensure_data_correctness(self,data):
+    def ensure_data_correctness(self, data):
         if not isinstance(data, np.ndarray):
             raise TypeError("Data needs to be input as numpy array")
         try:
             data.shape[2]
         except IndexError as e:
             raise IndexError("Data needs to be input as windowed data")
-        if data[0][0][0] < -1 or data[0][0][0] > 1:
+        if data[0][0][0] <= -1 or data[0][0][0] >= 1:
             raise ValueError("Data needs to be scaled between -1 and 1")
 
     def build_model(self):
@@ -71,10 +71,14 @@ class SolarLSTM:
             tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path,save_best_only=True),
         ]
         if not self.tuning_pipeline:
-            model = keras.Sequential(
-                keras.layers.LSTM(128),
-                keras.layers.LSTM(128)
+            model = keras.Sequential()
+            model.add(
+                keras.layers.LSTM(units=16, batch_input_shape=(1000, 120, 38), stateful=True, return_sequences=True)
             )
+            model.add(
+                keras.layers.LSTM(units=16)
+            )
+
             # If dropout was included, add dropout layer
             if "dropout" in self.regularization:
                 model.add(keras.layers.Dropout(rate=0.2))
@@ -84,7 +88,6 @@ class SolarLSTM:
         else:
             model = self._build_tuned_model(opt, loss)
         self.model = model
-        return model
 
     def _build_tuned_model(self, opt, loss):
         # Creating keras tuner object
@@ -92,6 +95,9 @@ class SolarLSTM:
 
         # Create two-layer LSTM model with binary output
         model = keras.Sequential()
+        model.add(
+            keras.layers.InputLayer((self.solar_data.shape[0], self.solar_data.shape[1], self.solar_data.shape[2]))
+        )
         model.add(
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
@@ -129,8 +135,8 @@ class SolarLSTM:
             best_hyper = tuner.get_best_hyperparameters(num_trials=1)[0]
             print('Hyper Tuning Complete')
             self.model = tuner.hypermodel.build(best_hyper)
-        history=self.model.fit(self.solar_data, self.solar_labels, epochs=50, callbacks=self.callbacks)
-        print('Model Fitting Done')
+        history = self.model.fit(self.solar_data, self.solar_labels, epochs=50, callbacks=self.callbacks)
+        # print('Model Fitting Done')
         #TODO maybe add some metrics or plots here?
 
     def evaluate(self,new_data,new_labels):
