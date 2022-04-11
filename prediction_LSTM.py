@@ -58,7 +58,7 @@ class SolarLSTM:
 
         # Set loss function
         #If perfromance not great, try adding from_logits=True to BinaryCrossentropy
-        loss = keras.losses.BinaryCrossentropy()
+        loss = keras.losses.BinaryCrossentropy(from_logits=True)
 
         #Add callbacks
         p=Path(self.save_path)
@@ -76,13 +76,13 @@ class SolarLSTM:
                 keras.layers.LSTM(units=16, batch_input_shape=(1000, 120, 38), stateful=True, return_sequences=True)
             )
             model.add(
-                keras.layers.LSTM(units=16)
+                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(1000, 120, 38))
             )
 
             # If dropout was included, add dropout layer
             if "dropout" in self.regularization:
                 model.add(keras.layers.Dropout(rate=0.2))
-            model.add(keras.layers.Dense(2, activation="sigmoid"))
+            model.add(keras.layers.Dense(1, activation="sigmoid"))
 
             model.compile(optimizer=opt, loss=loss, metrics=["accuracy", "mse", "mae"])
         else:
@@ -111,7 +111,7 @@ class SolarLSTM:
         # If dropout was included, add dropout layer
         if "dropout" in self.regularization:
             model.add(keras.layers.Dropout(rate=0.2))
-        model.add(keras.layers.Dense(2, activation="sigmoid"))
+        model.add(keras.layers.Dense(1, activation="sigmoid"))
 
         model.compile(optimizer=opt, loss=loss, metrics=["accuracy", "mse", "mae"])
         return model
