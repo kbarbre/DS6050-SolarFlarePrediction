@@ -73,10 +73,10 @@ class SolarLSTM:
         if not self.tuning_pipeline:
             model = keras.Sequential()
             model.add(
-                keras.layers.LSTM(units=16, batch_input_shape=(1000, 120, 38), stateful=True, return_sequences=True)
+                keras.layers.LSTM(units=16, batch_input_shape=(32, 120, 38), stateful=True, return_sequences=True)
             )
             model.add(
-                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(1000, 120, 38))
+                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(32, 120, 38))
             )
 
             # If dropout was included, add dropout layer
