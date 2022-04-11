@@ -7,9 +7,11 @@ import keras_tuner as kt
 from pathlib import Path
 class SolarLSTM:
 
-    # @classmethod load_model(cls,save_path):
-    #     make_obj
-    #     set_model from kera load
+    @classmethod 
+    def load_model(cls,save_path):
+        cls_obj=cls(np.zeros((1,1,1)),None,save_path)
+        cls_obj.model = keras.models.load_model(save_path)
+        return cls_obj
 
     def __init__(self, solar_data, solar_labels, save_path, tune=False, units=(64, 512, 32),
                  regularization=("early stopping", "dropout"), lr=0.001):
