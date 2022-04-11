@@ -7,6 +7,10 @@ import keras_tuner as kt
 from pathlib import Path
 class SolarLSTM:
 
+    # @classmethod load_model(cls,save_path):
+    #     make_obj
+    #     set_model from kera load
+
     def __init__(self, solar_data, solar_labels, save_path, tune=False, units=(64, 512, 32),
                  regularization=("early stopping", "dropout"), lr=0.001):
         """
@@ -23,7 +27,7 @@ class SolarLSTM:
         """
 
         self.solar_data = solar_data
-        self.ensure_data_correctness()
+        self.ensure_data_correctness(self.solar_data)
         self.solar_labels = solar_labels
         self.tuning_pipeline = tune
         self.units_min = units[0]
@@ -35,37 +39,35 @@ class SolarLSTM:
         self.model = None
         self.callbacks = [] #Calback signals for training
 
-    def ensure_data_correctness(self):
-        if isinstance(self.solar_data, pd.DataFrame):
+    def ensure_data_correctness(self,data):
+        if not isinstance(data, np.ndarray):
             raise TypeError("Data needs to be input as numpy array")
         try:
-            self.solar_data.shape[2]
+            data.shape[2]
         except IndexError as e:
             raise IndexError("Data needs to be input as windowed data")
-        if self.solar_data[0][0][0] < -1 or self.solar_data[0][0][0] > 1:
+        if data[0][0][0] < -1 or data[0][0][0] > 1:
             raise ValueError("Data needs to be scaled between -1 and 1")
 
     def build_model(self):
-        #Open questions: Do we want build_tuned_model to be an internal method only? (_build...)
-        #If not, it should set self.model
         #What args we want for the callbacks
-
         # Define Adam optimizer: default settings for Adam are the same as our default settings
         opt = keras.optimizers.Adam(learning_rate=self.adam_lr)
 
         # Set loss function
-        loss = keras.losses.BinaryCrossentropy(from_logits=True)
+        #If perfromance not great, try adding from_logits=True to BinaryCrossentropy
+        loss = keras.losses.BinaryCrossentropy()
 
         #Add callbacks
         p=Path(self.save_path)
         if p.suffix:#If has an extension (can't use is_dir incase not made yet)
             p = p.parent
         chkpt_path = p.joinpath('model_checkpoints')#TODO We may need to os.mkdir
+        #TODO decide what metrics/params to use here
         self.callbacks = [
             tf.keras.callbacks.EarlyStopping(patience=2),
             tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path,save_best_only=True),
         ]
-
         if not self.tuning_pipeline:
             model = keras.Sequential(
                 keras.layers.LSTM(128),
@@ -78,11 +80,11 @@ class SolarLSTM:
 
             model.compile(optimizer=opt, loss=loss, metrics=["accuracy", "mse", "mae"])
         else:
-            model = self.build_tuned_model(opt, loss)
+            model = self._build_tuned_model(opt, loss)
         self.model = model
         return model
 
-    def build_tuned_model(self, opt, loss):
+    def _build_tuned_model(self, opt, loss):
         # Creating keras tuner object
         hp = kt.HyperParameters()
 
@@ -104,7 +106,6 @@ class SolarLSTM:
         model.add(keras.layers.Dense(2, activation="sigmoid"))
 
         model.compile(optimizer=opt, loss=loss, metrics=["accuracy", "mse", "mae"])
-
         return model
 
     def save_model(self, model):
@@ -114,12 +115,22 @@ class SolarLSTM:
             model.get_best_model().save()
 
     def fit(self):
-        # TODO: Complete fit function. There are small differences in the fit for HyperParameter tuned model
-        #       and regular tuned model
         if self.model is None:
-            raise ValueError('Model Not built') #Alternatively we build it here
-        self.model.fit(self.solar_data, epochs=2, callbacks=self.callbacks)
-        #TODO is the data expected to be windowed at this point already?
-        #If not, do we want to use window_scaling?
-        #If use window_scaling, produce a generator for memory efficiency?
+            print('Model not found\nBuilding Model...')
+            self.build_model()
+        #TODO DETERMINE IF VALIDATION SPLIT,validation_split=0.1)
+        if self.tuning_pipeline:
+            #see keras tuners https://www.tensorflow.org/tutorials/keras/keras_tuner
+            #We can't use val_accuracy when we don't have a split
+            tuner = kt.BayesianOptimization(self.model,objective='accuracy',max_trials=10)
+            tuner.search(self.solar_data, self.solar_labels, epochs=50, validation_split=0.0, callbacks=self.callbacks)
+            best_hyper = tuner.get_best_hyperparameters(num_trials=1)[0]
+            print('Hyper Tuning Complete')
+            self.model = tuner.hypermodel.build(best_hyper)
+        history=self.model.fit(self.solar_data, self.solar_labels, epochs=50, callbacks=self.callbacks)
+        print('Model Fitting Done')
+        #TODO maybe add some metrics or plots here?
 
+    def evaluate(self,new_data,new_labels):
+        #TODO determine if any optional args here
+        return self.model.evaluate(new_data,new_labels)
