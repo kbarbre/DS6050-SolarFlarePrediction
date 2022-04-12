@@ -131,11 +131,12 @@ class SolarLSTM:
             #see keras tuners https://www.tensorflow.org/tutorials/keras/keras_tuner
             #We can't use val_accuracy when we don't have a split
             tuner = kt.BayesianOptimization(self.model,objective='accuracy',max_trials=10)
-            tuner.search(self.solar_data, self.solar_labels, epochs=50, validation_split=0.0, callbacks=self.callbacks)
+            tuner.search(self.solar_data, self.solar_labels, epochs=50, validation_split=0.2, callbacks=self.callbacks)
             best_hyper = tuner.get_best_hyperparameters(num_trials=1)[0]
             print('Hyper Tuning Complete')
             self.model = tuner.hypermodel.build(best_hyper)
-        history = self.model.fit(self.solar_data, self.solar_labels, epochs=50, callbacks=self.callbacks)
+        history = self.model.fit(self.solar_data, self.solar_labels, epochs=50,
+                                 callbacks=self.callbacks, validation_split=0.2)
         # print('Model Fitting Done')
         #TODO maybe add some metrics or plots here?
 
