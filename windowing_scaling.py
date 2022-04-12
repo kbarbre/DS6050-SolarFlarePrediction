@@ -66,8 +66,13 @@ class WindowScale:
         ######################################################
         end_index = self.raw_label.shape[0] - self.window_size
 
-        labels = self.raw_label[self.window_size:end_index]
-        labels = np.repeat(labels, self.window_size, axis=0)
+        labels = []
+
+        for i in range(self.window_size, end_index):
+            create_labels = self.raw_label[i:i+self.window_size]
+            labels.append(np.full(self.window_size, np.max(create_labels)))
+
+        labels = np.squeeze(np.array(labels))
 
         label_windows = (
                 # expand_dims are used to convert a 2D array to 3D array.
