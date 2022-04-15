@@ -70,9 +70,12 @@ class WindowScale:
 
         for i in range(self.window_size, end_index):
             create_labels = self.raw_label[i:i+self.window_size]
-            labels.append(np.full(self.window_size, np.max(create_labels)))
+            labels.append(np.full(1, np.max(create_labels)))
 
-        labels = np.squeeze(np.array(labels))
+        labels = np.array(labels)
+        # labels = labels.reshape((labels.shape[0], self.window_size, 1))
+
+        end_index = labels.shape[0] - self.window_size
 
         label_windows = (
                 # expand_dims are used to convert a 2D array to 3D array.
@@ -95,3 +98,4 @@ class WindowScale:
         for i in range(self.windowed_data.shape[1]):
             self.windowed_data[:, i, :] = self.standardization_scalar\
                                               .fit_transform(self.windowed_data[:, i, :], 1)
+

@@ -49,31 +49,7 @@ class DataPreparation:
         self.labels = np.array(self.labels)
 
 
-if __name__ == "__main__":
 
-    with open("data2014.pkl", "rb") as file:
-        data2014 = pickle.load(file)
-
-    with open("labels2014.pkl", "rb") as file:
-        labels2014 = pickle.load(file)
-
-    with open("data2015.pkl", "rb") as file:
-        data2015 = pickle.load(file)
-
-    with open("labels2015.pkl", "rb") as file:
-        labels2015 = pickle.load(file)
-
-    data2014 = DataPreparation(data2014, labels2014, True)
-    data2014.select_variables()
-    data2014.check_categorical()
-    data2014.to_numpy()
-
-    data2015 = DataPreparation(data2015, labels2015, True)
-    data2015.select_variables()
-    data2015.check_categorical()
-    data2015.to_numpy()
-
-    windowed_data2014 = WindowScale(data2014.array_data, data2014.labels)
 
 
 
