@@ -18,7 +18,7 @@ class DataPreparation:
 
     def select_variables(self):
         # Remove unnecessary columns
-        col_remove = ["BFLARE_LABEL", "CFLARE_LABEL", "MFLARE_LABEL", "XFLARE_LABEL",
+        col_remove = ["Timestamp", "BFLARE_LABEL", "CFLARE_LABEL", "MFLARE_LABEL", "XFLARE_LABEL",
                       "BFLARE_LOC", "BFLARE_LABEL_LOC", "CFLARE_LOC", "CFLARE_LABEL_LOC", "MFLARE_LOC",
                       "MFLARE_LABEL_LOC", "XFLARE_LOC", "XFLARE_LABEL_LOC", "QUALITY", "IS_TMFI", "XR_MAX", "XR_QUAL"]
         new_data = self.raw_data.drop(col_remove, axis=1)

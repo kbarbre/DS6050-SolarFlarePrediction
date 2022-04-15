@@ -67,23 +67,27 @@ class WindowScale:
         end_index = self.raw_label.shape[0] - self.window_size
 
         labels = []
+        j=0
 
-        for i in range(self.window_size, end_index):
-            create_labels = self.raw_label[i:i+self.window_size]
+        for i in range(end_index+1):
+            create_labels = self.raw_label[i:i+self.window_size-1]
             labels.append(np.full(1, np.max(create_labels)))
 
         labels = np.array(labels)
+        labels = np.repeat(labels, self.window_size, axis=0)
+        labels = labels.reshape((end_index+1, self.window_size, 1))
+        # labels = np.expand_dims(labels, 0)
         # labels = labels.reshape((labels.shape[0], self.window_size, 1))
 
-        end_index = labels.shape[0] - self.window_size
+        # end_index = labels.shape[0] - self.window_size
+        #
+        # label_windows = (
+        #         # expand_dims are used to convert a 2D array to 3D array.
+        #         np.expand_dims(np.arange(self.window_size), 0) +
+        #         np.expand_dims(np.arange(end_index + 1), 0).T
+        # )
 
-        label_windows = (
-                # expand_dims are used to convert a 2D array to 3D array.
-                np.expand_dims(np.arange(self.window_size), 0) +
-                np.expand_dims(np.arange(end_index + 1), 0).T
-        )
-
-        return self.raw_data[data_windows], labels[label_windows]
+        return self.raw_data[data_windows], labels
 
     def standardize(self):
         """
