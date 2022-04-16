@@ -43,9 +43,9 @@ class DataSelection:
 
         return data_object.array_data, data_object.labels
 
-    def data_windowing(self, data2, labels):
+    def data_windowing(self, data2, labels,norm_scalar=None,standard_scalar=None):
         # try:
-        window_object = WindowScale(data2, labels)
+        window_object = WindowScale(data2, labels,norm_scalar=norm_scalar,standard_scalar=standard_scalar)
         windowed_data = window_object.windowed_data
         windowed_labels = window_object.windowed_labels
 
@@ -110,5 +110,16 @@ if __name__ == "__main__":
     with open("all_data.pkl", "rb") as file:
         data = pickle.load(file)
 
-    DataSelection(data, 2014, "./")
-    DataSelection(data, 2015, "./")
+    #DataSelection(data, 2014, "./")
+    #DataSelection(data, 2015, "./")
+
+    with open("norm_scaler.pkl", "rb") as norm_file:
+        normalization = pickle.load(norm_file)
+
+    with open("stand_scaler.pkl", "rb") as stand_file:
+        standard = pickle.load(stand_file)
+
+    DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)
+
+
+#

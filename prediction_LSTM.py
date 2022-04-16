@@ -1,9 +1,11 @@
+from cProfile import label
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import keras_tuner as kt
-
+import matplotlib.pyplot as plt
+from sklearn import metrics
 from pathlib import Path
 class SolarLSTM:
 
@@ -52,16 +54,20 @@ class SolarLSTM:
         if data[0][0][0] <= -1 or data[0][0][0] >= 1:
             raise ValueError("Data needs to be scaled between -1 and 1")
 
-    def batch_prefetch_data(self, data, labels):
+    def batch_prefetch_data(self, data, labels=None,split_data=True):
         shuffle_buffer = 100
-
-        dataset = tf.data.Dataset.from_tensor_slices((data, labels)).shuffle(shuffle_buffer)
+        if labels is not None:
+            dataset = tf.data.Dataset.from_tensor_slices((data, labels)).shuffle(shuffle_buffer)
+        else: #Just prepare the data
+            dataset = tf.data.Dataset.from_tensor_slices(data)
         cardinality = tf.data.experimental.cardinality(dataset).numpy()
-        train_dataset = dataset.take(cardinality*.8)
-        val_dataset = dataset.skip(cardinality*.8)
-
-        return train_dataset.batch(self.batch_size, drop_remainder=True).prefetch(2), \
+        if split_data:
+            train_dataset = dataset.take(cardinality*.8)
+            val_dataset = dataset.skip(cardinality*.8)
+            return train_dataset.batch(self.batch_size, drop_remainder=True).prefetch(2), \
                val_dataset.batch(self.batch_size, drop_remainder=True).prefetch(2)
+        else:
+            return dataset.batch(self.batch_size, drop_remainder=True).prefetch(2) #1 return vs 2 if split_data
 
     def build_model(self):
         #What args we want for the callbacks
@@ -79,7 +85,7 @@ class SolarLSTM:
         chkpt_path = p.joinpath('model_checkpoints')#TODO We may need to os.mkdir
         #TODO decide what metrics/params to use here
         self.callbacks = [
-            tf.keras.callbacks.EarlyStopping(patience=2),
+            tf.keras.callbacks.EarlyStopping(patience=15,verbose=1),
             tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path,save_best_only=True),
         ]
         if not self.tuning_pipeline:
@@ -134,7 +140,7 @@ class SolarLSTM:
         else:
             model.get_best_model().save()
 
-    def fit(self):
+    def fit(self,make_plots=True):
         if self.model is None:
             print('Model not found\nBuilding Model...')
             self.build_model()
@@ -143,17 +149,47 @@ class SolarLSTM:
             #see keras tuners https://www.tensorflow.org/tutorials/keras/keras_tuner
             #We can't use val_accuracy when we don't have a split
             tuner = kt.BayesianOptimization(self.model, objective='accuracy', max_trials=10)
-            # tuner.search(self.solar_train, epochs=50, validation_split=0.2, callbacks=self.callbacks,
-            #              validation_data=self.solar_val)
             tuner.search(self.solar_train, epochs=50, callbacks=self.callbacks, validation_data=self.solar_val)
             best_hyper = tuner.get_best_hyperparameters(num_trials=1)[0]
             print('Hyper Tuning Complete')
             self.model = tuner.hypermodel.build(best_hyper)
         history = self.model.fit(self.solar_train, epochs=50,
-                                 callbacks=self.callbacks, validation_data=self.solar_val)#, validation_split=0.2)
+                                 callbacks=self.callbacks, validation_data=self.solar_val)
+        if make_plots:
+            pd.DataFrame(history.history).plot(figsize=(8, 5))
+            plt.grid(True)
+            plt.gca().set_ylim(0, 1)
+            plt.title('Model Learning Performance')
+            plt.show()
         # print('Model Fitting Done')
         #TODO maybe add some metrics or plots here?
+        return history
 
-    def evaluate(self, new_data, new_labels):
-        #TODO determine if any optional args here
-        return self.model.evaluate(new_data, new_labels)
+    def evaluate(self, dataset):
+        return self.model.evaluate(dataset)
+    
+    def predict(self,dataset):
+        return self.model.predict(dataset)
+    
+    def confusion_from_logits(self,logits,true_labels,make_plots):
+        preds = self._class_from_logits(logits)
+        true_labels = true_labels.flatten()
+        matrix = metrics.confusion_matrix(true_labels, preds, labels=[0,1])
+        if make_plots:
+            self.plot_confusion_matrix(matrix)
+        return matrix
+
+    def predict_conf_matrix(self,dataset,labels,make_plots=True):
+        logits = self.predict(dataset)
+        return self.confusion_from_logits(logits,labels,make_plots)
+    
+    def plot_confusion_matrix(self,matrix):
+        disp=metrics.ConfusionMatrixDisplay(confusion_matrix=matrix,display_labels=[0,1])
+        disp.plot(values_format='d')
+        return disp #Can modify the plot using this returned handle
+
+    def _class_from_logits(self,logits):
+        return np.where(logits.flatten() > .5, 1, 0)
+
+    def __call__(self, *args, **kwargs):
+        self.predict(*args,**kwargs)
