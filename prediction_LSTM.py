@@ -192,4 +192,4 @@ class SolarLSTM:
         return np.where(logits.flatten() > .5, 1, 0)
 
     def __call__(self, *args, **kwargs):
-        self.predict(*args,**kwargs)
+        return self.predict(*args,**kwargs)
