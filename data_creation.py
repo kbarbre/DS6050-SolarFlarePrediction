@@ -12,7 +12,7 @@ def bytes_to_gb_conversion(num_bytes):
 class DataSelection:
 
     # @profile
-    def __init__(self, all_data, year, save_path, use_all=True):
+    def __init__(self, all_data, year, save_path, use_all=True, norm_scaler=None, stand_scaler=None):
         # self.data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna()
         self.save_path = save_path
         self.range_tuples = self.find_good_ranges(all_data)
@@ -25,7 +25,10 @@ class DataSelection:
             start, end = gen
             data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna().iloc[start:end+1, :]
             prep_data, prep_labels = self.data_prep(data, use_all)
-            self.data_windowing(prep_data, prep_labels)
+            if norm_scaler and stand_scaler:
+                self.data_windowing(prep_data, prep_labels, norm_scalar=norm_scaler, standard_scalar=stand_scaler)
+            else:
+                self.data_windowing(prep_data, prep_labels)
             bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
 
         self.data_save(self.final_data, "data", year)
