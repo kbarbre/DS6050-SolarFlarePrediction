@@ -1,5 +1,6 @@
 import numpy as np
 import sklearn.preprocessing as preproc
+import pickle
 
 
 class WindowScale:
@@ -32,12 +33,20 @@ class WindowScale:
         Function to normalize all data to the range of (-1, 1)
         :return: Transformed data
         """
+        save=False
+
         if not self.normalization_scalar:
-            self.normalization_scaler = preproc.MinMaxScaler((-1, 1))
-            reshape_data = np.reshape(self.windowed_data, (self.windowed_data.shape[0] * self.windowed_data.shape[1],
-                                                           self.windowed_data.shape[2]))
-            transformed_data = self.normalization_scaler.fit_transform(reshape_data)
-            self.windowed_data = np.reshape(transformed_data, self.windowed_data.shape)
+            self.normalization_scalar = preproc.MinMaxScaler((-1, 1))
+            save=True
+
+        reshape_data = np.reshape(self.windowed_data, (self.windowed_data.shape[0] * self.windowed_data.shape[1],
+                                                       self.windowed_data.shape[2]))
+        transformed_data = self.normalization_scalar.fit_transform(reshape_data)
+        self.windowed_data = np.reshape(transformed_data, self.windowed_data.shape)
+
+        if save:
+            pickle.dump(self.normalization_scalar, open("norm_scaler.pkl", "wb"))
+
 
     def window(self):
         """
@@ -67,7 +76,6 @@ class WindowScale:
         end_index = self.raw_label.shape[0] - self.window_size
 
         labels = []
-        j=0
 
         for i in range(end_index+1):
             create_labels = self.raw_label[i:i+self.window_size-1]
@@ -96,10 +104,17 @@ class WindowScale:
         :return: Standardized, normalized, and windowed data
         """
 
+        save = False
+
         if not self.standardization_scalar:
             self.standardization_scalar = preproc.StandardScaler()
+            save=True
 
         for i in range(self.windowed_data.shape[1]):
             self.windowed_data[:, i, :] = self.standardization_scalar\
                                               .fit_transform(self.windowed_data[:, i, :], 1)
+
+        if save:
+            pickle.dump(self.standardization_scalar, open("stand_scaler.pkl", "wb"))
+
 
