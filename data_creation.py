@@ -37,6 +37,7 @@ class DataSelection:
     def data_prep(self, data1, use_all):
         labels = self.generate_labels(data1)
         data_object = DataPreparation(data1, labels, use_all=use_all)
+        data_object.collapse_timestamp()
         data_object.select_variables()
         data_object.check_categorical()
         data_object.to_numpy()
@@ -110,16 +111,24 @@ if __name__ == "__main__":
     with open("all_data.pkl", "rb") as file:
         data = pickle.load(file)
 
-    #DataSelection(data, 2014, "./")
-    #DataSelection(data, 2015, "./")
-
-    with open("norm_scaler.pkl", "rb") as norm_file:
-        normalization = pickle.load(norm_file)
-
-    with open("stand_scaler.pkl", "rb") as stand_file:
-        standard = pickle.load(stand_file)
-
-    DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)
+    DataSelection(data, 2014, "./")
+    DataSelection(data, 2015, "./")
 
 
-#
+if __name__ == "__main__":
+    #Change this to stop main from doing things
+    create_2014_data = True
+    create_2015_data = True
+    if create_2014_data: 
+        with open("all_data.pkl", "rb") as file:
+            data = pickle.load(file)
+
+        DataSelection(data, 2014, "./")
+    if create_2015_data:
+        with open("norm_scaler.pkl", "rb") as norm_file:
+            normalization = pickle.load(norm_file)
+
+        with open("stand_scaler.pkl", "rb") as stand_file:
+            standard = pickle.load(stand_file)
+
+        DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)
