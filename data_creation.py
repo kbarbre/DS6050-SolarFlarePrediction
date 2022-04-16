@@ -37,6 +37,7 @@ class DataSelection:
     def data_prep(self, data1, use_all):
         labels = self.generate_labels(data1)
         data_object = DataPreparation(data1, labels, use_all=use_all)
+        data_object.collapse_timestamp()
         data_object.select_variables()
         data_object.check_categorical()
         data_object.to_numpy()
