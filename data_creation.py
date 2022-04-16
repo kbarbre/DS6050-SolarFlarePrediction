@@ -4,37 +4,45 @@ import pickle
 from data_preparation import DataPreparation
 from windowing_scaling import WindowScale
 
+def bytes_to_gb_conversion(num_bytes):
+    num_gb = num_bytes / 1073741824
+    print(f"Num GB used in data array: {num_gb}")
+    return num_gb
+
 class DataSelection:
 
     # @profile
     def __init__(self, all_data, year, save_path, use_all=True):
-        self.data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna()
+        # self.data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna()
         self.save_path = save_path
-        self.range_tuples = self.find_good_ranges()
+        self.range_tuples = self.find_good_ranges(all_data)
         self.final_data = np.empty((0,120,38))
         self.final_labels = np.empty((0, 120, 1))
 
         for gen in self.range_tuples:
+            if bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize) > 3.5:
+                break
             start, end = gen
-            data = self.data.iloc[start:end+1, :]
+            data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna().iloc[start:end+1, :]
             prep_data, prep_labels = self.data_prep(data, use_all)
             self.data_windowing(prep_data, prep_labels)
+            bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
 
-        self.data_save(self.final_data)
-        self.data_save(self.final_labels)
+        self.data_save(self.final_data, "data", year)
+        self.data_save(self.final_labels, "labels", year)
 
-    def data_prep(self, data, use_all):
-        labels = self.generate_labels(data)
-        data_object = DataPreparation(data, labels, use_all=use_all)
+    def data_prep(self, data1, use_all):
+        labels = self.generate_labels(data1)
+        data_object = DataPreparation(data1, labels, use_all=use_all)
         data_object.select_variables()
         data_object.check_categorical()
         data_object.to_numpy()
 
         return data_object.array_data, data_object.labels
 
-    def data_windowing(self, data, labels):
+    def data_windowing(self, data2, labels):
         # try:
-        window_object = WindowScale(data, labels)
+        window_object = WindowScale(data2, labels)
         windowed_data = window_object.windowed_data
         windowed_labels = window_object.windowed_labels
 
@@ -45,52 +53,51 @@ class DataSelection:
         #     print("Windowing incomplete, error:")
         #     print(e)
 
-    def data_save(self, data):
-        with open(self.save_path, "wb") as file:
-            pickle.dump(data, file)
+    def data_save(self, data3, data_type, year):
+        file_name = self.save_path + "/" + data_type + "_" + str(year) + ".npy"
+        np.save(file_name, data3)
 
-    def generate_labels(self, data):
+    def generate_labels(self, data4):
         label_map = {True: 1, False: 0}
-        labels = ((data["BFLARE"] > 0) | (data["CFLARE"] > 0) |
-                  (data["MFLARE"] > 0) | (data["XFLARE"] > 0)).replace(label_map)
+        labels = ((data4["BFLARE"] > 0) | (data4["CFLARE"] > 0) |
+                  (data4["MFLARE"] > 0) | (data4["XFLARE"] > 0)).replace(label_map)
 
         return labels
 
-    def find_good_ranges(self):
-        ranges = self.find_continuous_data()
-        good_ranges = []
+    def find_good_ranges(self, data5):
+        ranges = self.find_continuous_data(data5)
 
         for item in ranges:
             len_range = item[1]-item[0]
             if len_range >= 120:
                 yield item[0], item[1]
 
-    def find_continuous_data(self):
+    def find_continuous_data(self, data6):
         continuous_range = []
 
-        for i in range(len(self.data) - 2):
+        for i in range(len(data6) - 2):
             if i == 0:
-                diff = self.calc_time_diff(i)
+                diff = self.calc_time_diff(data6, i)
                 if diff == 12:
                     j = i + 1
                     while diff == 12:
-                        diff = self.calc_time_diff(j)
+                        diff = self.calc_time_diff(data6, j)
                         j += 1
                     continuous_range.append((i, j-1))
                     yield i, j-1
             if i >= continuous_range[-1][1]:
-                diff = self.calc_time_diff(i)
+                diff = self.calc_time_diff(data6, i)
                 if diff == 12:
                     j = i + 1
-                    while (diff == 12 or diff == 0) and (j+1) < (len(self.data)-2):
-                        diff = self.calc_time_diff(j)
+                    while (diff == 12 or diff == 0) and (j+1) < (len(data6)-2):
+                        diff = self.calc_time_diff(data6, j)
                         j += 1
                     continuous_range.append((i, j - 1))
                     yield i, j-1
 
-    def calc_time_diff(self, i):
-        datetime_end = self.data.loc[:, "Timestamp"].iloc[i+1]
-        datetime_start = self.data.loc[:, "Timestamp"].iloc[i]
+    def calc_time_diff(self, data7, i):
+        datetime_end = data7.loc[:, "Timestamp"].iloc[i+1]
+        datetime_start = data7.loc[:, "Timestamp"].iloc[i]
         minutes_diff = (datetime_end - datetime_start).total_seconds() / 60.0
 
         return minutes_diff
@@ -100,5 +107,5 @@ if __name__ == "__main__":
     with open("all_data.pkl", "rb") as file:
         data = pickle.load(file)
 
-    DataSelection(data, 2014, "./data_2014.pkl")
-    DataSelection(data, 2015, "./data_2015.pkl")
+    DataSelection(data, 2014, "./")
+    DataSelection(data, 2015, "./")
