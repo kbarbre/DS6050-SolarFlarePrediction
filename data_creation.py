@@ -25,6 +25,8 @@ class DataSelection:
             start, end = gen
             data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna().iloc[start:end+1, :]
             prep_data, prep_labels = self.data_prep(data, use_all)
+            if prep_data.shape[0] < 120:
+                continue
             if norm_scaler and stand_scaler:
                 self.data_windowing(prep_data, prep_labels, norm_scalar=norm_scaler, standard_scalar=stand_scaler)
             else:
@@ -35,9 +37,9 @@ class DataSelection:
         self.data_save(self.final_labels, "labels", year)
 
     def data_prep(self, data1, use_all):
-        labels = self.generate_labels(data1)
-        data_object = DataPreparation(data1, labels, use_all=use_all)
+        data_object = DataPreparation(data1, use_all=use_all)
         data_object.collapse_timestamp()
+        data_object.generate_labels()
         data_object.select_variables()
         data_object.check_categorical()
         data_object.to_numpy()
@@ -60,13 +62,6 @@ class DataSelection:
     def data_save(self, data3, data_type, year):
         file_name = self.save_path + "/" + data_type + "_" + str(year) + ".npy"
         np.save(file_name, data3)
-
-    def generate_labels(self, data4):
-        label_map = {True: 1, False: 0}
-        labels = ((data4["BFLARE"] > 0) | (data4["CFLARE"] > 0) |
-                  (data4["MFLARE"] > 0) | (data4["XFLARE"] > 0)).replace(label_map)
-
-        return labels
 
     def find_good_ranges(self, data5):
         ranges = self.find_continuous_data(data5)
@@ -107,18 +102,18 @@ class DataSelection:
         return minutes_diff
 
 
-if __name__ == "__main__":
-    with open("all_data.pkl", "rb") as file:
-        data = pickle.load(file)
-
-    DataSelection(data, 2014, "./")
-    DataSelection(data, 2015, "./")
+# if __name__ == "__main__":
+#     with open("all_data.pkl", "rb") as file:
+#         data = pickle.load(file)
+#
+#     DataSelection(data, 2014, "./")
+#     DataSelection(data, 2015, "./")
 
 
 if __name__ == "__main__":
     #Change this to stop main from doing things
     create_2014_data = True
-    create_2015_data = True
+    create_2015_data = False
     if create_2014_data: 
         with open("all_data.pkl", "rb") as file:
             data = pickle.load(file)

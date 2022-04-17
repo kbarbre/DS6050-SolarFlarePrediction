@@ -33,11 +33,11 @@ class WindowScale:
         Function to normalize all data to the range of (-1, 1)
         :return: Transformed data
         """
-        save=False
+        save = False
 
         if not self.normalization_scalar:
             self.normalization_scalar = preproc.MinMaxScaler((-1, 1))
-            save=True
+            save = True
 
         reshape_data = np.reshape(self.windowed_data, (self.windowed_data.shape[0] * self.windowed_data.shape[1],
                                                        self.windowed_data.shape[2]))

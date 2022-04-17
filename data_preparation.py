@@ -6,7 +6,7 @@ import pickle
 
 class DataPreparation:
 
-    def __init__(self, data, labels, use_all=False, select_columns=None):
+    def __init__(self, data, use_all=False, select_columns=None):
         self.raw_data = data
         if not select_columns:
             self.columns = data.columns
@@ -14,11 +14,18 @@ class DataPreparation:
             self.columns = select_columns
         self.use_all = use_all
         self.array_data = None
-        self.labels = labels
+        self.labels = None
     
     def collapse_timestamp(self):
         self.collapsed_data = self.raw_data.groupby('Timestamp').mean()
         self.collapsed_data.reset_index(inplace = True)
+
+    def generate_labels(self):
+        label_map = {True: 1, False: 0}
+        labels = ((self.collapsed_data["BFLARE"] > 0) | (self.collapsed_data["CFLARE"] > 0) |
+                  (self.collapsed_data["MFLARE"] > 0) | (self.collapsed_data["XFLARE"] > 0)).replace(label_map)
+
+        self.labels = labels
 
     def select_variables(self):
         # Remove unnecessary columns
