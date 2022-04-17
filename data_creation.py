@@ -46,9 +46,9 @@ class DataSelection:
 
         return data_object.array_data, data_object.labels
 
-    def data_windowing(self, data2, labels,norm_scalar=None,standard_scalar=None):
+    def data_windowing(self, data2, labels, norm_scalar=None, standard_scalar=None):
         # try:
-        window_object = WindowScale(data2, labels,norm_scalar=norm_scalar,standard_scalar=standard_scalar)
+        window_object = WindowScale(data2, labels, norm_scalar=norm_scalar, standard_scalar=standard_scalar)
         windowed_data = window_object.windowed_data
         windowed_labels = window_object.windowed_labels
 
@@ -110,20 +110,20 @@ class DataSelection:
 #     DataSelection(data, 2015, "./")
 
 
-if __name__ == "__main__":
-    #Change this to stop main from doing things
-    create_2014_data = True
-    create_2015_data = False
-    if create_2014_data: 
-        with open("all_data.pkl", "rb") as file:
-            data = pickle.load(file)
-
-        DataSelection(data, 2014, "./")
-    if create_2015_data:
-        with open("norm_scaler.pkl", "rb") as norm_file:
-            normalization = pickle.load(norm_file)
-
-        with open("stand_scaler.pkl", "rb") as stand_file:
-            standard = pickle.load(stand_file)
-
-        DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)
+# if __name__ == "__main__":
+#     #Change this to stop main from doing things
+#     create_2014_data = True
+#     create_2015_data = False
+#     if create_2014_data:
+#         with open("all_data.pkl", "rb") as file:
+#             data = pickle.load(file)
+#
+#         DataSelection(data, 2014, "./")
+#     if create_2015_data:
+#         with open("norm_scaler.pkl", "rb") as norm_file:
+#             normalization = pickle.load(norm_file)
+#
+#         with open("stand_scaler.pkl", "rb") as stand_file:
+#             standard = pickle.load(stand_file)
+#
+#         DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)

@@ -15,7 +15,7 @@ class SolarLSTM:
         cls_obj.model = keras.models.load_model(save_path)
         return cls_obj
 
-    def __init__(self, solar_data, solar_labels, save_path, batch_size=1000, tune=False, units=(64, 512, 32),
+    def __init__(self, solar_data, solar_labels, save_path, batch_size=64, tune=False, units=(16, 128, 16),
                  regularization=("early stopping", "dropout"), lr=0.001):
         """
         Constructor for Solar Flare Prediction pipeline.
@@ -103,28 +103,30 @@ class SolarLSTM:
             model.add(keras.layers.Dense(1, activation="sigmoid"))
 
             model.compile(optimizer=opt, loss=loss, metrics=["accuracy", "mse", "mae"])
-        else:
-            model = self._build_tuned_model(opt, loss)
-        self.model = model
 
-    def _build_tuned_model(self, opt, loss):
+            self.model = model
+
+    def _build_tuned_model(self, hp):
         # Creating keras tuner object
-        hp = kt.HyperParameters()
+        # What args we want for the callbacks
+        # Define Adam optimizer: default settings for Adam are the same as our default settings
+        opt = keras.optimizers.Adam(learning_rate=self.adam_lr)
+
+        # Set loss function
+        # If perfromance not great, try adding from_logits=True to BinaryCrossentropy
+        loss = keras.losses.BinaryCrossentropy(from_logits=True)
 
         # Create two-layer LSTM model with binary output
         model = keras.Sequential()
         model.add(
-            keras.layers.InputLayer((self.solar_train.shape[0], self.solar_train.shape[1], self.solar_train.shape[2]))
+            keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
+                                           max_value=self.units_max, step=self.units_step),
+                              batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
         )
         model.add(
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
-                              activation="tanh")
-        )
-        model.add(
-            keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
-                                           max_value=self.units_max, step=self.units_step),
-                              activation="tanh")
+                              batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
         )
         # If dropout was included, add dropout layer
         if "dropout" in self.regularization:
@@ -148,7 +150,7 @@ class SolarLSTM:
         if self.tuning_pipeline:
             #see keras tuners https://www.tensorflow.org/tutorials/keras/keras_tuner
             #We can't use val_accuracy when we don't have a split
-            tuner = kt.BayesianOptimization(self.model, objective='accuracy', max_trials=10)
+            tuner = kt.BayesianOptimization(self._build_tuned_model, objective='val_accuracy', max_trials=10)
             tuner.search(self.solar_train, epochs=50, callbacks=self.callbacks, validation_data=self.solar_val)
             best_hyper = tuner.get_best_hyperparameters(num_trials=1)[0]
             print('Hyper Tuning Complete')
@@ -169,7 +171,7 @@ class SolarLSTM:
         return self.model.evaluate(dataset)
     
     def predict(self,dataset):
-        return self.model.predict(dataset)
+        return self.model.predict(dataset, batch_size=self.batch_size)
     
     def confusion_from_logits(self,logits,true_labels,make_plots):
         preds = self._class_from_logits(logits)
