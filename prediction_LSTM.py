@@ -91,10 +91,11 @@ class SolarLSTM:
         if not self.tuning_pipeline:
             model = keras.Sequential()
             model.add(
-                keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
+                # keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
+                keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]), stateful=True,return_sequences=True)
             )
             model.add(
-                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(self.batch_size, 120, 38))
+                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]))
             )
 
             # If dropout was included, add dropout layer
@@ -121,12 +122,14 @@ class SolarLSTM:
         model.add(
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
-                              batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
+                              # batch_input_shape=(self.batch_size, 120, 38), stateful=True,return_sequences=True)
+                              batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]), stateful=True, return_sequences=True)
         )
         model.add(
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
-                              batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
+                              # batch_input_shape=(self.batch_size, 120, 38), stateful=True,return_sequences=True)
+                              batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]), stateful=True, return_sequences=True)
         )
         # If dropout was included, add dropout layer
         if "dropout" in self.regularization:
