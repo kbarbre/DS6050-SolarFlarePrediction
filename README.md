@@ -42,7 +42,7 @@ The output of running data_creation.py will be .npy files saved at the given loc
 
 The prediction_LSTM.py holds all the functions necessary to import data, build the LSTM model framework, train the model on training data, evaluate the model on test data, create predictions for a confusion matrix and classification metrics, and save the model for use later.
 
-An example use of the file can be found in BaseModelPipeline.ipynb.
+An example use of the file can be found in ColabNotebook_ModelPipeline.ipynb.
 
 
 ## Citations
