@@ -12,11 +12,11 @@ def bytes_to_gb_conversion(num_bytes):
 class DataSelection:
 
     # @profile
-    def __init__(self, all_data, year, save_path, use_all=True, norm_scaler=None, stand_scaler=None):
+    def __init__(self, all_data, year, save_path, num_variables, use_all=True, select_columns=None, norm_scaler=None, stand_scaler=None):
         # self.data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna()
         self.save_path = save_path
         self.range_tuples = self.find_good_ranges(all_data)
-        self.final_data = np.empty((0,120,38))
+        self.final_data = np.empty((0, 120, num_variables))
         self.final_labels = np.empty((0, 120, 1))
 
         for gen in self.range_tuples:
@@ -24,7 +24,7 @@ class DataSelection:
                 break
             start, end = gen
             data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna().iloc[start:end+1, :]
-            prep_data, prep_labels = self.data_prep(data, use_all)
+            prep_data, prep_labels = self.data_prep(data, use_all=use_all, select_columns=select_columns)
             if prep_data.shape[0] < 120:
                 continue
             if norm_scaler and stand_scaler:
@@ -36,8 +36,8 @@ class DataSelection:
         self.data_save(self.final_data, "data", year)
         self.data_save(self.final_labels, "labels", year)
 
-    def data_prep(self, data1, use_all):
-        data_object = DataPreparation(data1, use_all=use_all)
+    def data_prep(self, data1, use_all, select_columns):
+        data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns)
         data_object.collapse_timestamp()
         data_object.generate_labels()
         data_object.select_variables()

@@ -15,8 +15,8 @@ class SolarLSTM:
         cls_obj.model = keras.models.load_model(save_path)
         return cls_obj
 
-    def __init__(self, solar_data, solar_labels, save_path, batch_size=64, tune=False, units=(16, 128, 16),
-                 regularization=("early stopping", "dropout"), lr=0.001):
+    def __init__(self, solar_data, solar_labels, save_path, num_variables, batch_size=64, tune=False,
+                 units=(16, 128, 16), regularization=("early stopping", "dropout"), lr=0.001):
         """
         Constructor for Solar Flare Prediction pipeline.
 
@@ -32,6 +32,7 @@ class SolarLSTM:
 
         self.batch_size = batch_size
         self.solar_train, self.solar_val = self.batch_prefetch_data(solar_data, solar_labels)
+        self.parameters = num_variables
         # self.ensure_data_correctness(self.solar_data)
         # self.solar_labels = solar_labels
         self.tuning_pipeline = tune
@@ -92,10 +93,10 @@ class SolarLSTM:
             model = keras.Sequential()
             model.add(
                 # keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
-                keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]), stateful=True,return_sequences=True)
+                keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True,return_sequences=True)
             )
             model.add(
-                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]))
+                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(self.batch_size, 120, self.parameters))
             )
 
             # If dropout was included, add dropout layer
@@ -123,13 +124,13 @@ class SolarLSTM:
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
                               # batch_input_shape=(self.batch_size, 120, 38), stateful=True,return_sequences=True)
-                              batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]), stateful=True, return_sequences=True)
+                              batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True, return_sequences=True)
         )
         model.add(
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
                               # batch_input_shape=(self.batch_size, 120, 38), stateful=True,return_sequences=True)
-                              batch_input_shape=(self.batch_size, 120, self.solar_train.shape[2]), stateful=True, return_sequences=True)
+                              batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True, return_sequences=True)
         )
         # If dropout was included, add dropout layer
         if "dropout" in self.regularization:
@@ -198,3 +199,23 @@ class SolarLSTM:
 
     def __call__(self, *args, **kwargs):
         return self.predict(*args,**kwargs)
+
+    def calculate_statistics(self, conf_matrix):
+        tp = conf_matrix[1][1]
+        fp = conf_matrix[1][0]
+        tn = conf_matrix[0][0]
+        fn = conf_matrix[0][1]
+
+        # Precision - TP/(TP+FP)
+        precision = tp / np.sum([tp, fp])
+
+        # Recall - TP/(TP+FN)
+        recall = tp / np.sum([tp, fn])
+
+        # False Alarm Rate/Probability of False Alarm - FP/(FP+TN)
+        far = fp / np.sum([fp, tn])
+
+        # Heidke Skill Score (HSS) - 2*(TP * TN - FP * FN) / (TP+FN)*(FN+TN)+(TP+FP)*(FP+TN)
+        hss = (2 * ((tp * tn) - (fp * fn))) / (((tp + fn) * (fn + tn)) + ((tp + tn) * (fp + tn)))
+
+        return pd.DataFrame({"precision": precision, "recall": recall, "far": far, "hss": hss}, index=[0])
