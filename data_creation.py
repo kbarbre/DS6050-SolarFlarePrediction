@@ -12,36 +12,57 @@ def bytes_to_gb_conversion(num_bytes):
 class DataSelection:
 
     # @profile
-    def __init__(self, all_data, year, save_path, num_variables, use_all=True, select_columns=None, norm_scaler=None, stand_scaler=None):
+    def __init__(self, all_data, year, save_path, num_variables=None, use_all=True, select_columns=None,
+                 feature_selection=False, norm_scaler=None, stand_scaler=None):
         # self.data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna()
         self.save_path = save_path
         self.range_tuples = self.find_good_ranges(all_data)
-        self.final_data = np.empty((0, 120, num_variables))
+
+        self.final_data = None
         self.final_labels = np.empty((0, 120, 1))
 
+        if not feature_selection:
+            if not num_variables:
+                num_variables = 38
+            self.final_data = np.empty((0, 120, num_variables))
+
+        i = 0
         for gen in self.range_tuples:
-            if bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize) > 3.5:
-                break
+            # if bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize) > 3.5:
+            #     break
             start, end = gen
             data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna().iloc[start:end+1, :]
-            prep_data, prep_labels = self.data_prep(data, use_all=use_all, select_columns=select_columns)
+            prep_data, prep_labels = self.data_prep(data, use_all=use_all, select_columns=select_columns,
+                                                    feature_selection=feature_selection)
+
+            if feature_selection and i == 0:
+                num_variables = prep_data.shape[1]
+                self.final_data = np.empty((0, 120, num_variables))
+
             if prep_data.shape[0] < 120:
                 continue
             if norm_scaler and stand_scaler:
                 self.data_windowing(prep_data, prep_labels, norm_scalar=norm_scaler, standard_scalar=stand_scaler)
             else:
                 self.data_windowing(prep_data, prep_labels)
-            bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
+            # bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
+
+            i += 1
+
+        print(bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize))
 
         self.data_save(self.final_data, "data", year)
         self.data_save(self.final_labels, "labels", year)
 
-    def data_prep(self, data1, use_all, select_columns):
+    def data_prep(self, data1, use_all, select_columns, feature_selection):
         data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns)
         data_object.collapse_timestamp()
         data_object.generate_labels()
         data_object.select_variables()
         data_object.check_categorical()
+        data_object.normalize()
+        if feature_selection:
+            data_object.select_features()
         data_object.to_numpy()
 
         return data_object.array_data, data_object.labels

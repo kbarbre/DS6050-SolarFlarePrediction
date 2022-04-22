@@ -26,27 +26,7 @@ class WindowScale:
         # Series of steps to normalize, window, and standardize the data
         self.windowed_data, self.windowed_labels = self.window()
         self.standardize()
-        self.normalize()
-
-    def normalize(self):
-        """
-        Function to normalize all data to the range of (-1, 1)
-        :return: Transformed data
-        """
-        save = False
-
-        if not self.normalization_scalar:
-            self.normalization_scalar = preproc.MinMaxScaler((-1, 1))
-            save = True
-
-        reshape_data = np.reshape(self.windowed_data, (self.windowed_data.shape[0] * self.windowed_data.shape[1],
-                                                       self.windowed_data.shape[2]))
-        transformed_data = self.normalization_scalar.fit_transform(reshape_data)
-        self.windowed_data = np.reshape(transformed_data, self.windowed_data.shape)
-
-        if save:
-            pickle.dump(self.normalization_scalar, open("norm_scaler.pkl", "wb"))
-
+        # self.normalize()
 
     def window(self):
         """
@@ -84,16 +64,6 @@ class WindowScale:
         labels = np.array(labels)
         labels = np.repeat(labels, self.window_size, axis=0)
         labels = labels.reshape((end_index+1, self.window_size, 1))
-        # labels = np.expand_dims(labels, 0)
-        # labels = labels.reshape((labels.shape[0], self.window_size, 1))
-
-        # end_index = labels.shape[0] - self.window_size
-        #
-        # label_windows = (
-        #         # expand_dims are used to convert a 2D array to 3D array.
-        #         np.expand_dims(np.arange(self.window_size), 0) +
-        #         np.expand_dims(np.arange(end_index + 1), 0).T
-        # )
 
         return self.raw_data[data_windows], labels
 
@@ -116,5 +86,24 @@ class WindowScale:
 
         if save:
             pickle.dump(self.standardization_scalar, open("stand_scaler.pkl", "wb"))
+
+    # def normalize(self):
+    #     """
+    #     Function to normalize all data to the range of (-1, 1)
+    #     :return: Transformed data
+    #     """
+    #     save = False
+    #
+    #     if not self.normalization_scalar:
+    #         self.normalization_scalar = preproc.MinMaxScaler((-1, 1))
+    #         save = True
+    #
+    #     reshape_data = np.reshape(self.windowed_data, (self.windowed_data.shape[0] * self.windowed_data.shape[1],
+    #                                                    self.windowed_data.shape[2]))
+    #     transformed_data = self.normalization_scalar.fit_transform(reshape_data)
+    #     self.windowed_data = np.reshape(transformed_data, self.windowed_data.shape)
+    #
+    #     if save:
+    #         pickle.dump(self.normalization_scalar, open("norm_scaler.pkl", "wb"))
 
 

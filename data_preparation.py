@@ -1,18 +1,25 @@
-import pandas as pd
 import numpy as np
-from windowing_scaling import WindowScale
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+import math
 import pickle
+import sklearn.preprocessing as preproc
+import pandas as pd
 
 
 class DataPreparation:
 
-    def __init__(self, data, use_all=False, select_columns=None):
+    def __init__(self, data, use_all=False, select_columns=None, norm_scaler=None):
         self.raw_data = data
         if not select_columns:
             self.columns = data.columns
         else:
             self.columns = select_columns
         self.use_all = use_all
+        if not norm_scaler:
+            self.normalization_scalar = None
+        else:
+            self.normalization_scalar = norm_scaler
         self.array_data = None
         self.labels = None
     
@@ -47,6 +54,36 @@ class DataPreparation:
                     # print("Column already removed in preprocessing...")
             self.array_data = new_data
 
+    def select_features(self):
+        k_num = math.floor(len(self.array_data.columns) / 3)  # select the top third based on the Chi Squared f-score
+        #     fs = SelectKBest(score_func=chi2, k='all')
+        fs = SelectKBest(score_func=chi2, k=k_num)
+
+        if not isinstance(self.labels, pd.Series):
+            self.labels = pd.Series(self.labels)
+
+        fs.fit(self.array_data, self.labels)
+
+        self.array_data = fs.transform(self.array_data)
+
+    def normalize(self):
+        """
+        Function to normalize all data to the range of (0, 1)
+        :return: Transformed data
+        """
+        save = False
+
+        if not self.normalization_scalar:
+            self.normalization_scalar = preproc.MinMaxScaler((0, 1))
+            save = True
+
+        all_col = self.array_data.columns
+        self.array_data = self.normalization_scalar.fit_transform(self.array_data)
+        self.array_data = pd.DataFrame(self.array_data, columns=all_col)
+
+        if save:
+            pickle.dump(self.normalization_scalar, open("norm_scaler.pkl", "wb"))
+
     def check_categorical(self):
         for column in self.array_data.columns:
             if not isinstance(type(column), int) or isinstance(type(column), float):
@@ -62,8 +99,26 @@ class DataPreparation:
         self.array_data = np.array(self.array_data)
         self.labels = np.array(self.labels)
 
-
-
-
+# if __name__ == "__main__":
+#     with open("all_data.pkl", "rb") as file:
+#         data = pickle.load(file)
+#
+#     print("Data read in")
+#
+#     data = data.loc[data["Timestamp"].dt.year == 2014].dropna()
+#
+#     print("Data filtered")
+#
+#     test_object = DataPreparation(data=data, use_all=False)
+#     test_object.collapse_timestamp()
+#     test_object.generate_labels()
+#     test_object.select_variables()
+#     test_object.check_categorical()
+#     test_object.normalize()
+#     test_object.select_features()
+#     test_object.to_numpy()
+#
+#     print(type(test_object.array_data))
+#     print(test_object.array_data.shape)
 
 
