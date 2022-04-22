@@ -22,10 +22,14 @@ class DataPreparation:
             self.normalization_scalar = norm_scaler
         self.array_data = None
         self.labels = None
+        self.terminate = False
     
     def collapse_timestamp(self):
         self.collapsed_data = self.raw_data.groupby('Timestamp').mean()
         self.collapsed_data.reset_index(inplace = True)
+
+        if len(self.collapsed_data) < 120:
+            self.terminate = True
 
     def generate_labels(self):
         label_map = {True: 1, False: 0}
@@ -61,8 +65,9 @@ class DataPreparation:
 
         if not isinstance(self.labels, pd.Series):
             self.labels = pd.Series(self.labels)
+            print(isinstance(self.labels, pd.Series))
 
-        fs.fit(self.array_data, self.labels)
+        fs.fit(self.array_data, list(self.labels.values))
 
         self.array_data = fs.transform(self.array_data)
 

@@ -32,31 +32,44 @@ class DataSelection:
             #     break
             start, end = gen
             data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna().iloc[start:end+1, :]
-            prep_data, prep_labels = self.data_prep(data, use_all=use_all, select_columns=select_columns,
-                                                    feature_selection=feature_selection)
+
+            if norm_scaler:
+                prep_data, prep_labels = self.data_prep(data, use_all=use_all, select_columns=select_columns,
+                                                        feature_selection=feature_selection, norm_scaler=norm_scaler)
+            else:
+                prep_data, prep_labels = self.data_prep(data, use_all=use_all, select_columns=select_columns,
+                                                        feature_selection=feature_selection)
+
+            if not isinstance(prep_data, np.ndarray):
+                continue
 
             if feature_selection and i == 0:
                 num_variables = prep_data.shape[1]
                 self.final_data = np.empty((0, 120, num_variables))
 
-            if prep_data.shape[0] < 120:
-                continue
-            if norm_scaler and stand_scaler:
+            if stand_scaler:
                 self.data_windowing(prep_data, prep_labels, norm_scalar=norm_scaler, standard_scalar=stand_scaler)
             else:
                 self.data_windowing(prep_data, prep_labels)
-            # bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
+            bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
 
             i += 1
 
-        print(bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize))
+        # bytes_to_gb_conversion(self.final_data.size * self.final_data.itemsize)
 
         self.data_save(self.final_data, "data", year)
         self.data_save(self.final_labels, "labels", year)
 
-    def data_prep(self, data1, use_all, select_columns, feature_selection):
-        data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns)
+    def data_prep(self, data1, use_all, select_columns, feature_selection, norm_scaler=None):
+        if not norm_scaler:
+            data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns)
+        else:
+            data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns, norm_scaler=norm_scaler)
         data_object.collapse_timestamp()
+
+        if data_object.terminate:
+            return False, False
+
         data_object.generate_labels()
         data_object.select_variables()
         data_object.check_categorical()
@@ -131,20 +144,20 @@ class DataSelection:
 #     DataSelection(data, 2015, "./")
 
 
-# if __name__ == "__main__":
-#     #Change this to stop main from doing things
-#     create_2014_data = True
-#     create_2015_data = False
-#     if create_2014_data:
-#         with open("all_data.pkl", "rb") as file:
-#             data = pickle.load(file)
-#
-#         DataSelection(data, 2014, "./")
-#     if create_2015_data:
-#         with open("norm_scaler.pkl", "rb") as norm_file:
-#             normalization = pickle.load(norm_file)
-#
-#         with open("stand_scaler.pkl", "rb") as stand_file:
-#             standard = pickle.load(stand_file)
-#
-#         DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)
+if __name__ == "__main__":
+    #Change this to stop main from doing things
+    create_2014_data = True
+    create_2015_data = False
+    if create_2014_data:
+        with open("all_data.pkl", "rb") as file:
+            data = pickle.load(file)
+
+        DataSelection(data, 2014, "./", feature_selection=True, use_all=False)
+    if create_2015_data:
+        with open("norm_scaler.pkl", "rb") as norm_file:
+            normalization = pickle.load(norm_file)
+
+        with open("stand_scaler.pkl", "rb") as stand_file:
+            standard = pickle.load(stand_file)
+
+        DataSelection(data, 2015,"./", norm_scaler=normalization, stand_scaler=standard)
