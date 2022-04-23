@@ -1,4 +1,6 @@
+from argparse import ArgumentError
 from cProfile import label
+from this import d
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -44,6 +46,7 @@ class SolarLSTM:
         self.save_path = save_path
         self.model = None
         self.callbacks = [] #Calback signals for training
+        self.cutoff = 0.5 #Probability cutoff for binary class prediction
 
     def ensure_data_correctness(self, data):
         if not isinstance(data, np.ndarray):
@@ -194,8 +197,31 @@ class SolarLSTM:
         disp.plot(values_format='d')
         return disp #Can modify the plot using this returned handle
 
+    def view_prediction_distributions(self,true_labels,data=None,logits=None,make_plots=True):
+        """
+        Separates the distributions for true positves and false positves
+        Will accept either data and do the prediction, or the already predicted logits
+        """
+        if data is None and logits is None:
+            raise ArgumentError('Atleast one of data or logits must be specified')
+        elif data:
+            logits = self.predict(data)
+        flat_logits = logits.flatten()
+        pred_class_labels = self._class_from_logits(logits)
+        true_class_labels = true_labels.flatten()
+        pred_true_idx = np.where(pred_class_labels == 1)[0]
+        actuals = true_class_labels[pred_true_idx]
+        pred_logits = flat_logits[pred_true_idx]
+        true_positive_logits = pred_logits[np.where(actuals == 1)[0]]
+        false_positive_logits = pred_logits[np.where(actuals != 1)[0]]
+        if make_plots:
+            plt.boxplot(np.array([true_positive_logits,false_positive_logits]),labels=['True Positives','False Positives'])
+            plt.title('Boxplot of Probabilities for Solar Flare Predictions')
+            plt.ylabel('Logit Prob')
+        return (true_positive_logits,false_positive_logits)
+
     def _class_from_logits(self,logits):
-        return np.where(logits.flatten() > .5, 1, 0)
+        return np.where(logits.flatten() > self.cutoff, 1, 0)
 
     def __call__(self, *args, **kwargs):
         return self.predict(*args,**kwargs)
