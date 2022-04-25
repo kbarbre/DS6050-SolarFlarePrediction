@@ -17,7 +17,7 @@ class SolarLSTM:
         cls_obj.model = keras.models.load_model(save_path)
         return cls_obj
 
-    def __init__(self, solar_data, solar_labels, save_path, num_variables, batch_size=64, tune=False,
+    def __init__(self, solar_data, solar_labels, save_path, batch_size=64, tune=False,
                  units=(16, 128, 16), regularization=("early stopping", "dropout"), lr=0.001):
         """
         Constructor for Solar Flare Prediction pipeline.
@@ -34,7 +34,7 @@ class SolarLSTM:
 
         self.batch_size = batch_size
         self.solar_train, self.solar_val = self.batch_prefetch_data(solar_data, solar_labels)
-        self.parameters = num_variables
+        self.parameters = solar_data.shape[2]
         # self.ensure_data_correctness(self.solar_data)
         # self.solar_labels = solar_labels
         self.tuning_pipeline = tune
