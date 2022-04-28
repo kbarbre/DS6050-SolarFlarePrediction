@@ -1,6 +1,5 @@
 from argparse import ArgumentError
 from cProfile import label
-from this import d
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -9,11 +8,13 @@ import keras_tuner as kt
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from pathlib import Path
+
+
 class SolarLSTM:
 
-    @classmethod 
-    def load_model(cls,save_path):
-        cls_obj=cls(np.zeros((1,1,1)),None,save_path)
+    @classmethod
+    def load_model(cls, save_path):
+        cls_obj = cls(np.zeros((1, 1, 1)), None, save_path)
         cls_obj.model = keras.models.load_model(save_path)
         return cls_obj
 
@@ -45,8 +46,8 @@ class SolarLSTM:
         self.adam_lr = lr
         self.save_path = save_path
         self.model = None
-        self.callbacks = [] #Calback signals for training
-        self.cutoff = 0.5 #Probability cutoff for binary class prediction
+        self.callbacks = []  # Calback signals for training
+        self.cutoff = 0.65  # Probability cutoff for binary class prediction
 
     def ensure_data_correctness(self, data):
         if not isinstance(data, np.ndarray):
@@ -58,48 +59,50 @@ class SolarLSTM:
         if data[0][0][0] <= -1 or data[0][0][0] >= 1:
             raise ValueError("Data needs to be scaled between -1 and 1")
 
-    def batch_prefetch_data(self, data, labels=None,split_data=True):
+    def batch_prefetch_data(self, data, labels=None, split_data=True):
         shuffle_buffer = 100
         if labels is not None:
             dataset = tf.data.Dataset.from_tensor_slices((data, labels)).shuffle(shuffle_buffer)
-        else: #Just prepare the data
+        else:  # Just prepare the data
             dataset = tf.data.Dataset.from_tensor_slices(data)
         cardinality = tf.data.experimental.cardinality(dataset).numpy()
         if split_data:
-            train_dataset = dataset.take(cardinality*.8)
-            val_dataset = dataset.skip(cardinality*.8)
+            train_dataset = dataset.take(cardinality * .8)
+            val_dataset = dataset.skip(cardinality * .8)
             return train_dataset.batch(self.batch_size, drop_remainder=True).prefetch(2), \
-               val_dataset.batch(self.batch_size, drop_remainder=True).prefetch(2)
+                   val_dataset.batch(self.batch_size, drop_remainder=True).prefetch(2)
         else:
-            return dataset.batch(self.batch_size, drop_remainder=True).prefetch(2) #1 return vs 2 if split_data
+            return dataset.batch(self.batch_size, drop_remainder=True).prefetch(2)  # 1 return vs 2 if split_data
 
     def build_model(self):
-        #What args we want for the callbacks
+        # What args we want for the callbacks
         # Define Adam optimizer: default settings for Adam are the same as our default settings
         opt = keras.optimizers.Adam(learning_rate=self.adam_lr)
 
         # Set loss function
-        #If perfromance not great, try adding from_logits=True to BinaryCrossentropy
+        # If perfromance not great, try adding from_logits=True to BinaryCrossentropy
         loss = keras.losses.BinaryCrossentropy(from_logits=True)
 
-        #Add callbacks
-        p=Path(self.save_path)
-        if p.suffix:#If has an extension (can't use is_dir incase not made yet)
+        # Add callbacks
+        p = Path(self.save_path)
+        if p.suffix:  # If has an extension (can't use is_dir incase not made yet)
             p = p.parent
-        chkpt_path = p.joinpath('model_checkpoints')#TODO We may need to os.mkdir
-        #TODO decide what metrics/params to use here
+        chkpt_path = p.joinpath('model_checkpoints')  # TODO We may need to os.mkdir
+        # TODO decide what metrics/params to use here
         self.callbacks = [
-            tf.keras.callbacks.EarlyStopping(patience=15,verbose=1),
-            tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path,save_best_only=True),
+            tf.keras.callbacks.EarlyStopping(patience=15, verbose=1),
+            tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path, save_best_only=True),
         ]
         if not self.tuning_pipeline:
             model = keras.Sequential()
             model.add(
                 # keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, 38), stateful=True, return_sequences=True)
-                keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True,return_sequences=True)
+                keras.layers.LSTM(units=16, batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True,
+                                  return_sequences=True)
             )
             model.add(
-                keras.layers.LSTM(units=16, return_sequences=True, stateful=True, batch_input_shape=(self.batch_size, 120, self.parameters))
+                keras.layers.LSTM(units=16, return_sequences=True, stateful=True,
+                                  batch_input_shape=(self.batch_size, 120, self.parameters))
             )
 
             # If dropout was included, add dropout layer
@@ -127,13 +130,15 @@ class SolarLSTM:
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
                               # batch_input_shape=(self.batch_size, 120, 38), stateful=True,return_sequences=True)
-                              batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True, return_sequences=True)
+                              batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True,
+                              return_sequences=True)  # , recurrent_dropout=0.2)
         )
         model.add(
             keras.layers.LSTM(units=hp.Int("units", min_value=self.units_min,
                                            max_value=self.units_max, step=self.units_step),
                               # batch_input_shape=(self.batch_size, 120, 38), stateful=True,return_sequences=True)
-                              batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True, return_sequences=True)
+                              batch_input_shape=(self.batch_size, 120, self.parameters), stateful=True,
+                              return_sequences=True)  # , recurrent_dropout=0.2)
         )
         # If dropout was included, add dropout layer
         if "dropout" in self.regularization:
@@ -149,14 +154,14 @@ class SolarLSTM:
         else:
             model.get_best_model().save()
 
-    def fit(self,make_plots=True):
+    def fit(self, make_plots=True):
         if self.model is None:
             print('Model not found\nBuilding Model...')
             self.build_model()
-        #TODO DETERMINE IF VALIDATION SPLIT,validation_split=0.1)
+        # TODO DETERMINE IF VALIDATION SPLIT,validation_split=0.1)
         if self.tuning_pipeline:
-            #see keras tuners https://www.tensorflow.org/tutorials/keras/keras_tuner
-            #We can't use val_accuracy when we don't have a split
+            # see keras tuners https://www.tensorflow.org/tutorials/keras/keras_tuner
+            # We can't use val_accuracy when we don't have a split
             tuner = kt.BayesianOptimization(self._build_tuned_model, objective='val_accuracy', max_trials=10)
             tuner.search(self.solar_train, epochs=50, callbacks=self.callbacks, validation_data=self.solar_val)
             best_hyper = tuner.get_best_hyperparameters(num_trials=1)[0]
@@ -171,33 +176,33 @@ class SolarLSTM:
             plt.title('Model Learning Performance')
             plt.show()
         # print('Model Fitting Done')
-        #TODO maybe add some metrics or plots here?
+        # TODO maybe add some metrics or plots here?
         return history
 
     def evaluate(self, dataset):
         return self.model.evaluate(dataset)
-    
-    def predict(self,dataset):
+
+    def predict(self, dataset):
         return self.model.predict(dataset, batch_size=self.batch_size)
-    
-    def confusion_from_logits(self,logits,true_labels,make_plots):
+
+    def confusion_from_logits(self, logits, true_labels, make_plots):
         preds = self._class_from_logits(logits)
         true_labels = true_labels.flatten()
-        matrix = metrics.confusion_matrix(true_labels, preds, labels=[0,1])
+        matrix = metrics.confusion_matrix(true_labels, preds, labels=[0, 1])
         if make_plots:
             self.plot_confusion_matrix(matrix)
         return matrix
 
-    def predict_conf_matrix(self,dataset,labels,make_plots=True):
+    def predict_conf_matrix(self, dataset, labels, make_plots=True):
         logits = self.predict(dataset)
-        return self.confusion_from_logits(logits,labels,make_plots)
-    
-    def plot_confusion_matrix(self,matrix):
-        disp=metrics.ConfusionMatrixDisplay(confusion_matrix=matrix,display_labels=[0,1])
-        disp.plot(values_format='d')
-        return disp #Can modify the plot using this returned handle
+        return self.confusion_from_logits(logits, labels, make_plots)
 
-    def view_prediction_distributions(self,true_labels,data=None,logits=None,make_plots=True):
+    def plot_confusion_matrix(self, matrix):
+        disp = metrics.ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=[0, 1])
+        disp.plot(values_format='d')
+        return disp  # Can modify the plot using this returned handle
+
+    def view_prediction_distributions(self, true_labels, data=None, logits=None, make_plots=True):
         """
         Separates the distributions for true positves and false positves
         Will accept either data and do the prediction, or the already predicted logits
@@ -215,16 +220,17 @@ class SolarLSTM:
         true_positive_logits = pred_logits[np.where(actuals == 1)[0]]
         false_positive_logits = pred_logits[np.where(actuals != 1)[0]]
         if make_plots:
-            plt.boxplot(np.array([true_positive_logits,false_positive_logits]),labels=['True Positives','False Positives'])
+            plt.boxplot(np.array([true_positive_logits, false_positive_logits]),
+                        labels=['True Positives', 'False Positives'])
             plt.title('Boxplot of Probabilities for Solar Flare Predictions')
             plt.ylabel('Logit Prob')
-        return (true_positive_logits,false_positive_logits)
+        return (true_positive_logits, false_positive_logits)
 
-    def _class_from_logits(self,logits):
+    def _class_from_logits(self, logits):
         return np.where(logits.flatten() > self.cutoff, 1, 0)
 
     def __call__(self, *args, **kwargs):
-        return self.predict(*args,**kwargs)
+        return self.predict(*args, **kwargs)
 
     def calculate_statistics(self, conf_matrix):
         tp = conf_matrix[1][1]
