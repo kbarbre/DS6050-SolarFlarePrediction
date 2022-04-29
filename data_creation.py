@@ -1,3 +1,4 @@
+from pathlib import Path
 import sqlite3
 import numpy as np
 import pickle
@@ -16,6 +17,9 @@ class DataSelection:
                  feature_selection=False, norm_scaler=None, stand_scaler=None):
         # self.data = all_data.loc[all_data["Timestamp"].dt.year == year].dropna()
         self.save_path = save_path
+        p=Path(save_path)
+        if not p.exists():
+            p.mkdir()
         self.range_tuples = self.find_good_ranges(all_data)
 
         self.final_data = None
@@ -62,9 +66,9 @@ class DataSelection:
 
     def data_prep(self, data1, use_all, select_columns, feature_selection, norm_scaler=None):
         if not norm_scaler:
-            data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns)
+            data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns,save_path=self.save_path)
         else:
-            data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns, norm_scaler=norm_scaler)
+            data_object = DataPreparation(data1, use_all=use_all, select_columns=select_columns, norm_scaler=norm_scaler,save_path=self.save_path)
         data_object.collapse_timestamp()
 
         if data_object.terminate:
@@ -82,7 +86,7 @@ class DataSelection:
 
     def data_windowing(self, data2, labels, norm_scalar=None, standard_scalar=None):
         # try:
-        window_object = WindowScale(data2, labels, norm_scalar=norm_scalar, standard_scalar=standard_scalar)
+        window_object = WindowScale(data2, labels, norm_scalar=norm_scalar, standard_scalar=standard_scalar,save_path=self.save_path)
         windowed_data = window_object.windowed_data
         windowed_labels = window_object.windowed_labels
 

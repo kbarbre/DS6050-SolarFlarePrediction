@@ -9,8 +9,9 @@ import pandas as pd
 
 class DataPreparation:
 
-    def __init__(self, data, use_all=False, select_columns=None, norm_scaler=None):
+    def __init__(self, data, use_all=False, select_columns=None, norm_scaler=None,save_path='./'):
         self.raw_data = data
+        self.save_path = save_path
         if not select_columns:
             self.columns = data.columns
         else:
@@ -87,7 +88,7 @@ class DataPreparation:
         self.array_data = pd.DataFrame(self.array_data, columns=all_col)
 
         if save:
-            pickle.dump(self.normalization_scalar, open("norm_scaler.pkl", "wb"))
+            pickle.dump(self.normalization_scalar, open(self.save_path+"norm_scaler.pkl", "wb"))
 
     def check_categorical(self):
         for column in self.array_data.columns:

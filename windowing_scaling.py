@@ -5,11 +5,11 @@ import pickle
 
 class WindowScale:
 
-    def __init__(self, data, label, norm_scalar=None, standard_scalar=None, window_size=120):
-
+    def __init__(self, data, label, norm_scalar=None, standard_scalar=None, window_size=120,save_path="./"):
         self.raw_data = data
         self.raw_label = label
         self.window_size = window_size
+        self.save_path = save_path
 
         # Check if a pre-fit normalization scalar was passed (for test data)
         if not norm_scalar:
@@ -85,7 +85,7 @@ class WindowScale:
                                               .fit_transform(self.windowed_data[:, i, :], 1)
 
         if save:
-            pickle.dump(self.standardization_scalar, open("stand_scaler.pkl", "wb"))
+            pickle.dump(self.standardization_scalar, open(self.save_path+"stand_scaler.pkl", "wb"))
 
     # def normalize(self):
     #     """

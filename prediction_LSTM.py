@@ -89,7 +89,7 @@ class SolarLSTM:
         chkpt_path = p.joinpath('model_checkpoints')  # TODO We may need to os.mkdir
         # TODO decide what metrics/params to use here
         self.callbacks = [
-            tf.keras.callbacks.EarlyStopping(patience=15, verbose=1),
+            tf.keras.callbacks.EarlyStopping(patience=5, verbose=1),
             tf.keras.callbacks.ModelCheckpoint(filepath=chkpt_path, save_best_only=True),
         ]
         if not self.tuning_pipeline:
@@ -148,10 +148,7 @@ class SolarLSTM:
         return model
 
     def save_model(self, model):
-        if not self.tuning_pipeline:
-            model.save(self.save_path)
-        else:
-            model.get_best_model().save()
+        model.save(self.save_path)
 
     def fit(self, make_plots=True):
         if self.model is None:
