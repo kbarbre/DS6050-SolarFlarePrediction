@@ -148,7 +148,7 @@ class SolarLSTM:
         return model
 
     def save_model(self, model):
-        model.save(self.save_path)
+        model.save(self.save_path, save_format="h5")
 
     def fit(self, make_plots=True):
         if self.model is None:
